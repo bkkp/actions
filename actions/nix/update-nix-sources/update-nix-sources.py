@@ -4,7 +4,7 @@ import requests
 import subprocess
 import json
 import re
-from typing import NamedTuple, Any, Optional
+from typing import NamedTuple, Any, Optional, Dict, List, Union
 import os
 import sys
 
@@ -18,7 +18,12 @@ class GitRemoteInfo(NamedTuple):
 def git_remote_info() -> GitRemoteInfo:
   response = subprocess.run(["git", "remote", "get-url", "origin"], check=True, capture_output=True)
   stdout = response.stdout.decode().lstrip()
-  return GitRemoteInfo(*re.match(r"https://github.com/(\w+)/(\w+).git", stdout).groups())
+
+  p = re.match(r"https://github.com/(\w+)/(\w+).git", stdout)
+  if p is None:
+    p = re.match(r"https://github.com/(\w+)/(\w+)", stdout)
+
+  return GitRemoteInfo(*p.groups())
 
 def git_checkout_branch(branch:str) -> None:
   try:
@@ -67,7 +72,7 @@ class GhRequestError(Exception):
       l.append(e["message"])
     return str(l)
 
-def gh_api_request(query: str) -> dict[str, Any]:
+def gh_api_request(query: str) -> Dict[str, Any]:
   r = requests.post(
     url="https://api.github.com/graphql",
     headers={"Authorization": f"bearer {os.environ['GITHUB_TOKEN']}"},
@@ -110,7 +115,7 @@ def make_pull_request(
   body:str,
   head_branch:str,
   base_branch:Optional[str] = None
-) -> None:
+) -> Union[str, None]:
   repo = gh_repo_info()
 
   if base_branch is None:
@@ -126,7 +131,7 @@ def make_pull_request(
         repositoryId: "{repo.id}"}}
       )
       {{
-        pullRequest {{ title, number }}
+        pullRequest {{ title, number, id }}
       }}
     }}"""
 
@@ -137,12 +142,47 @@ def make_pull_request(
       msg = e.errors[0]["message"]
       if msg.startswith("A pull request already exists for"):
         typer.echo(msg)
+        return None
       else:
         raise e
     else:
       raise e
   else:
     typer.echo(response["data"])
+    return response["data"]["createPullRequest"]["pullRequest"]["id"]
+
+def gh_userid(user: str) -> str:
+  user_query = f"""
+    query {{ 
+      user(login: "{user}") {{
+        name
+        id
+      }}
+    }}"""
+
+  response = gh_api_request(user_query)
+  typer.echo(response["data"])
+  return response["data"]["user"]["id"]
+
+def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
+  _userids = []
+  for user in users:
+    userid = gh_userid(user)
+    _userids.append(userid)
+  
+  userids = ", ".join(map(lambda x: '\"' + x + '\"', _userids)) 
+
+  add_review_query = f"""
+    mutation {{ 
+      requestReviews(input:{{pullRequestId: "{pr_id}", union: true, userIds: [{userids}]}}) {{ 
+        pullRequest {{
+          title
+          number
+        }}
+      }}
+    }}"""
+  response = gh_api_request(add_review_query)
+  typer.echo(response["data"])
 
 
 
@@ -152,12 +192,13 @@ def niv(cmd:str) -> None:
 
 
 def main(
-  branch:str = "bot/update-nix-sources7",
+  branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
   pr_body:str = "This is a automatic generatet PR, with updates to nix sources.",
   commiter_username:str = "GitHub",
   commiter_email:str = "noreply@github.com",
-  github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN")
+  github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
+  reviewer: Optional[List[str]] = typer.Option(None),
 ):
   if github_token is None:
       typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
@@ -182,11 +223,15 @@ def main(
   git_force_push(branch)
 
   typer.secho("\n# >>> Make PR", fg=typer.colors.BLUE)
-  make_pull_request(
+  pr_id = make_pull_request(
     title=pr_title,
     body=pr_body,
     head_branch=branch,
   )
+
+  if (pr_id is not None) & (reviewer is not None):
+    typer.secho("\n# >>> Add reviewer to PR", fg=typer.colors.BLUE)
+    gh_add_pr_reviwers(pr_id, users=reviewer)
 
 
 if __name__ == "__main__":
