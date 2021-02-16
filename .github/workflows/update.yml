@@ -1,8 +1,8 @@
 name: "Update nix sources"
-on:
-  schedule:
-    - cron:  '0 6 * * 2' # Every Thusday at 06: 00 UTC
-  workflow_dispatch:
+on: push
+  #schedule:
+  #  - cron:  '0 6 * * 2' # Every Thusday at 06: 00 UTC
+  #workflow_dispatch:
 
 jobs:
   update:
@@ -22,4 +22,4 @@ jobs:
       run: nix-env -f default.nix -iA update-nix-sources
 
     - name: Update Nix sources
-      run: update-nix-sources ${{ github.token }}
+      run: update-nix-sources --reviewer kfollesdal  ${{ github.token }}
