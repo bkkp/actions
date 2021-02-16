@@ -4,7 +4,7 @@ import requests
 import subprocess
 import json
 import re
-from typing import NamedTuple, Any, Optional
+from typing import NamedTuple, Any, Optional, Dict
 import os
 import sys
 
@@ -67,7 +67,7 @@ class GhRequestError(Exception):
       l.append(e["message"])
     return str(l)
 
-def gh_api_request(query: str) -> dict[str, Any]:
+def gh_api_request(query: str) -> Dict[str, Any]:
   r = requests.post(
     url="https://api.github.com/graphql",
     headers={"Authorization": f"bearer {os.environ['GITHUB_TOKEN']}"},
