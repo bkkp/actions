@@ -4,7 +4,7 @@ import requests
 import subprocess
 import json
 import re
-from typing import NamedTuple, Any, Optional, Dict
+from typing import NamedTuple, Any, Optional, Dict, List
 import os
 import sys
 
@@ -115,7 +115,7 @@ def make_pull_request(
   body:str,
   head_branch:str,
   base_branch:Optional[str] = None
-) -> None:
+) -> str:
   repo = gh_repo_info()
 
   if base_branch is None:
@@ -131,7 +131,7 @@ def make_pull_request(
         repositoryId: "{repo.id}"}}
       )
       {{
-        pullRequest {{ title, number }}
+        pullRequest {{ title, number, id }}
       }}
     }}"""
 
@@ -148,6 +148,40 @@ def make_pull_request(
       raise e
   else:
     typer.echo(response["data"])
+    return response["data"]["createPullRequest"]["pullRequest"]["id"]
+
+def gh_userid(user: str) -> str:
+  user_query = f"""
+    query {{ 
+      user(login: "{user}") {{
+        id
+      }}
+    }}"""
+
+  response = gh_api_request(user_query)
+  typer.echo(response["data"])
+  return response["data"]["user"]["id"]
+
+def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
+  _userids = []
+  for user in users:
+    userid = gh_userid(user)
+    _userids.append(userid)
+  
+  userids = ", ".join(map(lambda x: '\"' + x + '\"', _userids)) 
+
+  add_review_query = f"""
+    mutation {{ 
+      requestReviews(input:{{pullRequestId: "{pr_id}", userIds: [{userids}]}}) {{ 
+        pullRequest {{
+          title
+          number
+        }}
+      }}
+    }}"""
+
+  response = gh_api_request(user_query)
+  typer.echo(response["data"])
 
 
 
@@ -157,6 +191,7 @@ def niv(cmd:str) -> None:
 
 
 def main(
+  reviewers:Optional[List[str]] = None,
   branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
   pr_body:str = "This is a automatic generatet PR, with updates to nix sources.",
@@ -187,11 +222,15 @@ def main(
   git_force_push(branch)
 
   typer.secho("\n# >>> Make PR", fg=typer.colors.BLUE)
-  make_pull_request(
+  pr_id = make_pull_request(
     title=pr_title,
     body=pr_body,
     head_branch=branch,
   )
+
+  if reviewers is not None:
+    typer.secho("\n# >>> Add reviewer to PR", fg=typer.colors.BLUE)
+    gh_add_pr_reviwers(pr_id, users=["kfollesdal"])
 
 
 if __name__ == "__main__":
