@@ -180,7 +180,7 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
       }}
     }}"""
 
-  response = gh_api_request(user_query)
+  response = gh_api_request(add_review_query)
   typer.echo(response["data"])
 
 
