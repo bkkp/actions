@@ -22,4 +22,4 @@ jobs:
       run: nix-env -f default.nix -iA update-nix-sources
 
     - name: Update Nix sources
-      run: update-nix-sources --reviwers kfollesdal ${{ github.token }}
+      run: update-nix-sources --reviewers kfollesdal ${{ github.token }}
