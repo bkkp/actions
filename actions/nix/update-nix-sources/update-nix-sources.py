@@ -18,8 +18,12 @@ class GitRemoteInfo(NamedTuple):
 def git_remote_info() -> GitRemoteInfo:
   response = subprocess.run(["git", "remote", "get-url", "origin"], check=True, capture_output=True)
   stdout = response.stdout.decode().lstrip()
-  print("A", stdout)
-  return GitRemoteInfo(*re.match(r"https://github.com/(\w+)/(\w+).git", stdout).groups())
+
+  p = re.match(r"https://github.com/(\w+)/(\w+).git", stdout)
+  if p is None:
+    p = re.match(r"https://github.com/(\w+)/(\w+)", stdout)
+
+  return GitRemoteInfo(*p.groups())
 
 def git_checkout_branch(branch:str) -> None:
   try:
