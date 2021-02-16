@@ -1,8 +1,8 @@
 name: "Update nix sources"
-on:
-  schedule:
-    - cron:  '0 6 * * 2' # Every Thusday at 06: 00 UTC
-  workflow_dispatch:
+on: push
+  #schedule:
+  #  - cron:  '0 6 * * 2' # Every Thusday at 06: 00 UTC
+  #workflow_dispatch:
 
 jobs:
   update:
