@@ -4,7 +4,7 @@ import requests
 import subprocess
 import json
 import re
-from typing import NamedTuple, Any, Optional, Dict, List
+from typing import NamedTuple, Any, Optional, Dict, List, Union
 import os
 import sys
 
@@ -115,7 +115,7 @@ def make_pull_request(
   body:str,
   head_branch:str,
   base_branch:Optional[str] = None
-) -> str:
+) -> Union[str, None]:
   repo = gh_repo_info()
 
   if base_branch is None:
@@ -142,6 +142,7 @@ def make_pull_request(
       msg = e.errors[0]["message"]
       if msg.startswith("A pull request already exists for"):
         typer.echo(msg)
+        return None
       else:
         raise e
     else:
@@ -154,6 +155,7 @@ def gh_userid(user: str) -> str:
   user_query = f"""
     query {{ 
       user(login: "{user}") {{
+        name
         id
       }}
     }}"""
@@ -172,14 +174,14 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
 
   add_review_query = f"""
     mutation {{ 
-      requestReviews(input:{{pullRequestId: "{pr_id}", userIds: [{userids}]}}) {{ 
+      requestReviews(input:{{pullRequestId: "{pr_id}", union: true, userIds: [{userids}]}}) {{ 
         pullRequest {{
           title
           number
         }}
       }}
     }}"""
-
+  print(add_review_query)
   response = gh_api_request(add_review_query)
   typer.echo(response["data"])
 
@@ -191,13 +193,13 @@ def niv(cmd:str) -> None:
 
 
 def main(
-  reviewers:Optional[List[str]] = None,
   branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
   pr_body:str = "This is a automatic generatet PR, with updates to nix sources.",
   commiter_username:str = "GitHub",
   commiter_email:str = "noreply@github.com",
-  github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN")
+  github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
+  reviewer: Optional[List[str]] = typer.Option(None),
 ):
   if github_token is None:
       typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
@@ -228,9 +230,9 @@ def main(
     head_branch=branch,
   )
 
-  if reviewers is not None:
+  if (pr_id is not None) & (reviewer is not None):
     typer.secho("\n# >>> Add reviewer to PR", fg=typer.colors.BLUE)
-    gh_add_pr_reviwers(pr_id, users=["kfollesdal"])
+    gh_add_pr_reviwers(pr_id, users=reviewer)
 
 
 if __name__ == "__main__":
