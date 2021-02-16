@@ -152,7 +152,7 @@ def niv(cmd:str) -> None:
 
 
 def main(
-  branch:str = "bot/update-nix-sources7",
+  branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
   pr_body:str = "This is a automatic generatet PR, with updates to nix sources.",
   commiter_username:str = "GitHub",
