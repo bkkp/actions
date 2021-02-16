@@ -1,0 +1,14 @@
+{
+    "nixpkgs": {
+        "branch": "main",
+        "description": "Nixpkgs tilpasset BKK Produksjons bruk. ",
+        "homepage": "",
+        "owner": "bkkp",
+        "repo": "nixpkgs",
+        "rev": "aa8d237184d6e7e202609fc64f12b43436235153",
+        "sha256": "0hr2y3gr8shnlrj72879clj5rqjvryvyma4h2zamsqn677gixwpi",
+        "type": "tarball",
+        "url": "https://github.com/bkkp/nixpkgs/archive/aa8d237184d6e7e202609fc64f12b43436235153.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}
