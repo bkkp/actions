@@ -186,9 +186,11 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
 
 
 
-def niv(cmd:str) -> None:
-  subprocess.run(["niv", cmd], check=True)
-
+def niv(cmd:str, source: str = None) -> None:
+  if source is None:
+    subprocess.run(["niv", cmd], check=True)
+  else:
+    subprocess.run(["niv", cmd, source], check=True)
 
 
 def main(
@@ -199,6 +201,7 @@ def main(
   commiter_email:str = "noreply@github.com",
   github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
   reviewer: Optional[List[str]] = typer.Option(None),
+  source: Optional[str] = typer.Option(None, help='Specific source to update, if omitted updates all'),
 ):
   if github_token is None:
       typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
@@ -215,7 +218,7 @@ def main(
   git_commit(commiter_username, commiter_email, "Update sources.nix")
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
-  niv("update")
+  niv("update", source)
   git_add()
   git_commit(commiter_username, commiter_email, "Update nix sources")
 
