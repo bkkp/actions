@@ -216,7 +216,10 @@ def main(
   git_commit(commiter_username, commiter_email, "Update sources.nix")
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
-  niv("update", source)
+  if source is not None:
+      niv("update", source)
+  else:
+      niv("update") # Update all sources
   git_add()
   git_commit(commiter_username, commiter_email, "Update nix sources")
 
