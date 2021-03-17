@@ -186,11 +186,9 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
 
 
 
-def niv(cmd:str, source: str = None) -> None:
-  if source is None:
-    subprocess.run(["niv", cmd], check=True)
-  else:
-    subprocess.run(["niv", cmd, source], check=True)
+def niv(*cmd:str) -> None:
+    cmds = ["niv"] + list(cmd)
+    subprocess.run(cmds, check=True)
 
 
 def main(
