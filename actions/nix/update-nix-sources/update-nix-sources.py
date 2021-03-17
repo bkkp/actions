@@ -186,19 +186,20 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
 
 
 
-def niv(cmd:str) -> None:
-  subprocess.run(["niv", cmd], check=True)
-
+def niv(*cmd: str) -> None:
+    cmds = ["niv"] + list(cmd)
+    subprocess.run(cmds, check=True)
 
 
 def main(
   branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
-  pr_body:str = "This is a automatic generatet PR, with updates to nix sources.",
-  commiter_username:str = "GitHub",
-  commiter_email:str = "noreply@github.com",
+  pr_body:str = "This is a automatic generated PR, with updates to nix sources.",
+  commiter_username: str = "GitHub",
+  commiter_email: str = "noreply@github.com",
   github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
   reviewer: Optional[List[str]] = typer.Option(None),
+  source: Optional[str] = typer.Option(None, help='Specific source to update, if omitted updates all'),
 ):
   if github_token is None:
       typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
@@ -215,7 +216,11 @@ def main(
   git_commit(commiter_username, commiter_email, "Update sources.nix")
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
-  niv("update")
+  if source is not None:
+      niv("update", source)
+  else:
+      niv("update") # Update all sources
+
   git_add()
   git_commit(commiter_username, commiter_email, "Update nix sources")
 
