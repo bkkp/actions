@@ -218,11 +218,13 @@ def main(
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
   if source is not None:
       niv("update", source)
+      commit_msg = f'Update nix sources {source}'
   else:
       niv("update") # Update all sources
+      commit_msg = 'Update nix sources'
 
   git_add()
-  git_commit(commiter_username, commiter_email, "Update nix sources")
+  git_commit(commiter_username, commiter_email, commit_msg)
 
   typer.secho("\n# >>> Force push", fg=typer.colors.BLUE)
   git_force_push(branch)
