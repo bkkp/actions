@@ -218,10 +218,32 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
   typer.echo(response["data"])
 
 
+# --- Nix functions
 
 def niv(*cmd: str) -> None:
     cmds = ["niv"] + list(cmd)
     subprocess.run(cmds, check=True)
+
+
+class NivSourceInfo(NamedTuple):
+  name: str
+  repo: str
+  branch: str
+  rev: str
+
+def get_source_info(name: str, niv_path: str = 'nix/sources.json')
+  """ Get information about a nix source """
+  
+  with open(niv_path, 'r') as f:
+    d = json.load(f)
+  
+  info = NivSourceInfo(
+    name=d[name]['name'],
+    repo=d[name]['repo'],
+    branch=d[name]['branch'],
+    rev=d[name]['rev'],
+  )
+  return info
 
 
 def main(
