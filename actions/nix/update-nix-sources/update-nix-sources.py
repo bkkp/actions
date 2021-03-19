@@ -86,12 +86,16 @@ def gh_api_request(query: str, variables: dict = None) -> Dict[str, Any]:
     return response
 
 
-def gh_repo_tags(name, owner, search_limit: 10) -> dict:
+def gh_repo_tags(name, owner, search_limit: str = 10) -> dict:
   """ Return mapping from oid to name for latest tags in a repository """
   tags_query = """
-    query RefTags($owner: String!, $name: String!, $limit: String!) {
+    query RefTags($owner: String!, $name: String!, $limit: Int!) {
       repository(owner: $owner, name: $name) {
-        refs(refPrefix: "refs/tags/", last: $limit) {
+        refs(
+          refPrefix: "refs/tags/", 
+          first: $limit, 
+          orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+        ) {
           nodes {
             name
             target { oid }
@@ -112,7 +116,7 @@ def gh_repo_tags(name, owner, search_limit: 10) -> dict:
 
   d = {}
   for node in nodes:
-    d[node['name']] = node['target']['oid']
+    d[node['target']['oid']] = node['name']
   
   return d
 
@@ -226,30 +230,43 @@ def niv(*cmd: str) -> None:
 
 
 class NivSourceInfo(NamedTuple):
-  name: str
   repo: str
+  owner: str
   branch: str
   rev: str
 
-def get_source_info(name: str, niv_path: str = 'nix/sources.json')
+def get_source_info(name: str, niv_path: str = 'nix/sources.json'):
   """ Get information about a nix source """
-  
   with open(niv_path, 'r') as f:
     d = json.load(f)
-  
   info = NivSourceInfo(
-    name=d[name]['name'],
     repo=d[name]['repo'],
+    owner=d[name]['owner'],
     branch=d[name]['branch'],
     rev=d[name]['rev'],
   )
   return info
 
+def source_version(name: str, source_tags: dict):
+  """ Determine version of source from its tags 
+  
+  Fall back to rev if tag is not found. Argument `source_tags` is a mapping from
+  refs(rev's) to tag names.
+  """
+  source_info = get_source_info(name)
+  version = source_tags.get(source_info.rev)
+  if version is None:
+    return source_info.rev
+  else:
+    return version
+
+
+# --- Main function
 
 def main(
-  branch:str = "bot/update-nix-sources",
-  pr_title:str = "[bot] Update nix sources",
-  pr_body:str = "This is a automatic generated PR, with updates to nix sources.",
+  branch: str = "bot/update-nix-sources",
+  pr_title: str = "[bot] Update nix sources",
+  pr_body: str = "This is an automatic generated PR, with updates to nix sources.",
   commiter_username: str = "GitHub",
   commiter_email: str = "noreply@github.com",
   github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
@@ -262,7 +279,7 @@ def main(
   else:
     os.environ["GITHUB_TOKEN"] = github_token
 
-  typer.secho("\n# >>> Checkout or create PR brnach", fg=typer.colors.BLUE)
+  typer.secho("\n# >>> Checkout or create PR branch", fg=typer.colors.BLUE)
   git_checkout_branch(branch)
 
   typer.secho("\n# >>> Update sources.nix", fg=typer.colors.BLUE)
@@ -275,8 +292,12 @@ def main(
       niv("update") # Update all sources
       commit_msg = 'Update all nix sources'
   else:
+      source_info = get_source_info(source)
+      source_tags = gh_repo_tags(source_info.repo, source_info.owner)
+      old_version = source_version(source, source_tags)
       niv("update", source)
-      commit_msg = f'Update {source}'
+      new_version = source_version(source, source_tags)
+      commit_msg = f'{source}: {old_version} -> {new_version}'
 
   git_add()
   git_commit(commiter_username, commiter_email, commit_msg)
