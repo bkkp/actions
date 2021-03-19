@@ -72,11 +72,11 @@ class GhRequestError(Exception):
       l.append(e["message"])
     return str(l)
 
-def gh_api_request(query: str) -> Dict[str, Any]:
+def gh_api_request(query: str, variables: dict = None) -> Dict[str, Any]:
   r = requests.post(
     url="https://api.github.com/graphql",
     headers={"Authorization": f"bearer {os.environ['GITHUB_TOKEN']}"},
-    json={"query": query}
+    json={"query": query, "variables": variables}
   )
   r.raise_for_status()
   response =  r.json()
@@ -84,6 +84,39 @@ def gh_api_request(query: str) -> Dict[str, Any]:
     raise GhRequestError(response["errors"], response)
   else:
     return response
+
+
+def gh_repo_tags(name, owner, search_limit: 10) -> dict:
+  """ Return mapping from oid to name for latest tags in a repository """
+  tags_query = """
+    query RefTags($owner: String!, $name: String!, $limit: String!) {
+      repository(owner: $owner, name: $name) {
+        refs(refPrefix: "refs/tags/", last: $limit) {
+          nodes {
+            name
+            target { oid }
+          }
+        }
+      }
+    }
+  """
+  variables = {'name': name, 'owner': owner, 'limit': search_limit}
+  response = gh_api_request(tags_query, variables)
+  try:  # repository, refs and nodes may be None
+    nodes = response['data']['repository']['refs']['nodes']
+  except KeyError:
+    return {}
+
+  if not isinstance(nodes, list):
+    return {}
+
+  d = {}
+  for node in nodes:
+    d[node['name']] = node['target']['oid']
+  
+  return d
+
+
 
 def gh_repo_info() -> GhRepoInfo:
   owner, gh_repo_name = git_remote_info()
@@ -216,12 +249,12 @@ def main(
   git_commit(commiter_username, commiter_email, "Update sources.nix")
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
-  if source is not None:
-      niv("update", source)
-      commit_msg = f'Update nix sources {source}'
-  else:
+  if source is None:
       niv("update") # Update all sources
-      commit_msg = 'Update nix sources'
+      commit_msg = 'Update all nix sources'
+  else:
+      niv("update", source)
+      commit_msg = f'Update {source}'
 
   git_add()
   git_commit(commiter_username, commiter_email, commit_msg)
