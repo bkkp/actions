@@ -1,22 +1,20 @@
 { pkgs }:
-pkgs.python3.pkgs.buildPythonApplication {
-  name = "update-nix-sources";
 
-  format="other";
-  dontUnpack = true;
+let
+  python-env = pkgs.python38.withPackages(ps: with ps; [
+    typer
+    requests
+  ]);
+
+in pkgs.python3.pkgs.buildPythonApplication {
+  name = "update-nix-sources";
+  version = "2020.1";
+  src = ./.;
 
   propagatedBuildInputs = with pkgs; [
+    python-env
+    nix
     niv
     git
-    (python3.withPackages (ps: with ps; [
-      typer
-      requests
-    ]))
   ];
-
-  installPhase = ''
-    mkdir -p $out/bin
-    cp ${./update-nix-sources.py} $out/bin/update-nix-sources
-    chmod +x $out/bin/update-nix-sources
-  '';
 }

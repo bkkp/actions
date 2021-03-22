@@ -239,5 +239,5 @@ def main(
     gh_add_pr_reviwers(pr_id, users=reviewer)
 
 
-if __name__ == "__main__":
+def run():
   typer.run(main)
