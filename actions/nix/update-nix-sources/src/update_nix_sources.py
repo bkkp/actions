@@ -185,11 +185,39 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
   typer.echo(response["data"])
 
 
+# --- Nix operations
+
+def nix_source_rev(name: str, sources_file='nix/sources.json') -> str:
+  with open(sources_file, 'r') as f:
+    d = json.load(f)
+  
+  return d[name]['rev']
+
+
+def nix_source_version(source: str, nix_file: str = "./default.nix") -> str:
+  """ Get version and revision of nix source 
+  
+  Looks for version in derivation in **nix_file**. If no version is found in 
+  derivation fall back to `rev` from `sources.json`.
+  """
+  expression = f"(import {nix_file} {{}}).{source}.version"
+  cmd = ["nix-instantiate", "--eval", "-E", expression]
+  proc = subprocess.run(cmd, capture_output=True)
+  rev = nix_source_rev(source)
+  if proc.returncode == 0:
+    version = proc.stdout.decode().strip().replace('"',"")
+  else:
+    version = rev
+
+  return version, rev
+
 
 def niv(*cmd: str) -> None:
     cmds = ["niv"] + list(cmd)
     subprocess.run(cmds, check=True)
 
+
+# --- Typer functions
 
 def main(
   branch:str = "bot/update-nix-sources",
@@ -202,8 +230,8 @@ def main(
   source: Optional[str] = typer.Option(None, help='Specific source to update, if omitted updates all'),
 ):
   if github_token is None:
-      typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
-      sys.exit(1)
+    typer.secho("# >>> GITHUB TOKEN MISSING: Add token to cli arg github_token or set env variable GITHUB_TOKEN", fg=typer.colors.RED)
+    sys.exit(1)
   else:
     os.environ["GITHUB_TOKEN"] = github_token
 
@@ -217,12 +245,16 @@ def main(
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
   if source is not None:
-      niv("update", source)
+    old_version, old_rev = nix_source_version(source)
+    niv("update", source)
+    new_version, new_rev = nix_source_version(source)
+    commit_msg = f"{source}: {old_version} -> {new_version}\n\n{old_rev} -> {new_rev}"
   else:
-      niv("update") # Update all sources
+    niv("update") # Update all sources
+    commit_msg = "Update all nix sources"
 
   git_add()
-  git_commit(commiter_username, commiter_email, "Update nix sources")
+  git_commit(commiter_username, commiter_email, commit_msg)
 
   typer.secho("\n# >>> Force push", fg=typer.colors.BLUE)
   git_force_push(branch)
