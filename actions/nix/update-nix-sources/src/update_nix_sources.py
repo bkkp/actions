@@ -222,9 +222,9 @@ def niv(*cmd: str) -> None:
 def main(
   branch:str = "bot/update-nix-sources",
   pr_title:str = "[bot] Update nix sources",
-  pr_body:str = "This is a automatic generated PR, with updates to nix sources.",
-  commiter_username: str = "GitHub",
-  commiter_email: str = "noreply@github.com",
+  pr_body:str = "This is an automatic generated PR, with updates to nix sources.",
+  commiter_username: str = "svadil",
+  commiter_email: str = "bkkp.dev@bkk.no",
   github_token: Optional[str] = typer.Argument(None, envvar="GITHUB_TOKEN"),
   reviewer: Optional[List[str]] = typer.Option(None),
   source: Optional[str] = typer.Option(None, help='Specific source to update, if omitted updates all'),
@@ -235,7 +235,7 @@ def main(
   else:
     os.environ["GITHUB_TOKEN"] = github_token
 
-  typer.secho("\n# >>> Checkout or create PR brnach", fg=typer.colors.BLUE)
+  typer.secho("\n# >>> Checkout or create PR branch", fg=typer.colors.BLUE)
   git_checkout_branch(branch)
 
   typer.secho("\n# >>> Update sources.nix", fg=typer.colors.BLUE)
