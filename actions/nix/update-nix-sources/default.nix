@@ -8,7 +8,7 @@ let
 
 in pkgs.python3.pkgs.buildPythonApplication {
   name = "update-nix-sources";
-  version = "2020.1";
+  version = "21.03.1001";
   src = ./.;
 
   propagatedBuildInputs = with pkgs; [
