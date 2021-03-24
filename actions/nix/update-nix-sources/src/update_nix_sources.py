@@ -187,29 +187,15 @@ def gh_add_pr_reviwers(pr_id: str, users: List[str]) -> None:
 
 # --- Nix operations
 
-def nix_source_rev(name: str, sources_file='nix/sources.json') -> str:
-  with open(sources_file, 'r') as f:
-    d = json.load(f)
-  
-  return d[name]['rev']
-
-
 def nix_source_version(source: str, nix_file: str = "./default.nix") -> str:
-  """ Get version and revision of nix source 
-  
-  Looks for version in derivation in **nix_file**. If no version is found in 
-  derivation fall back to `rev` from `sources.json`.
-  """
+  """ Get version and revision of nix source from nix_file """
   expression = f"(import {nix_file} {{}}).{source}.version"
   cmd = ["nix-instantiate", "--eval", "-E", expression]
   proc = subprocess.run(cmd, capture_output=True)
-  rev = nix_source_rev(source)
   if proc.returncode == 0:
-    version = proc.stdout.decode().strip().replace('"',"")
+    return proc.stdout.decode().strip().replace('"',"")
   else:
-    version = rev
-
-  return version, rev
+    return ''
 
 
 def niv(*cmd: str) -> None:
@@ -236,6 +222,9 @@ def main(
     os.environ["GITHUB_TOKEN"] = github_token
 
   typer.secho("\n# >>> Checkout or create PR branch", fg=typer.colors.BLUE)
+  if source is not None:
+    branch = f'bot/update-nix-sources-{source}'
+    
   git_checkout_branch(branch)
 
   typer.secho("\n# >>> Update sources.nix", fg=typer.colors.BLUE)
@@ -245,10 +234,11 @@ def main(
 
   typer.secho("\n# >>> Update nix sources", fg=typer.colors.BLUE)
   if source is not None:
-    old_version, old_rev = nix_source_version(source)
+    old_version = nix_source_version(source)
     niv("update", source)
-    new_version, new_rev = nix_source_version(source)
-    commit_msg = f"{source}: {old_version} -> {new_version}\n\n{old_rev} -> {new_rev}"
+    new_version = nix_source_version(source)
+    commit_msg = f"{source}: {old_version} -> {new_version}"
+    pr_title = commit_msg
   else:
     niv("update") # Update all sources
     commit_msg = "Update all nix sources"
